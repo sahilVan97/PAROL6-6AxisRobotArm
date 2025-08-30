@@ -32,8 +32,6 @@
 
 volatile unsigned tick_count;
 
-#define NUM 6
-
 // Init structures
 TMC5160Stepper driver[] = {TMC5160Stepper(SELECT1, R_SENSE), TMC5160Stepper(SELECT6, R_SENSE), TMC5160Stepper(SELECT5, R_SENSE),
                            TMC5160Stepper(SELECT4, R_SENSE), TMC5160Stepper(SELECT2, R_SENSE), TMC5160Stepper(SELECT3, R_SENSE)};
@@ -50,16 +48,9 @@ int current_tick = 0;
 int prev_tick = 0;
 
 // variables for robot homing
-int robot_homed = 0;
-int homed = 0;
+bool homed = false;
 int repet_flag = 0;
-int home_command = 0;
-
-void Init_motor_drivers(int num);
-int home_all();
-void Init_motor_direction();
-void disable_motors();
-void enable_motors();
+bool home_command = false;
 
 // Input helper variables
 byte input_byte = 0; // Here save incoming bytes from serial
@@ -122,19 +113,18 @@ int joint456_stage2 = 0;
 int joint456_stage3 = 0;
 
 /// demo stage test
-int setup_var = 0;
-int move1 = 0;
-int move2 = 0;
-int move3 = 0;
-int move4 = 0;
-int start_stop = 0;
+bool setup_var = false;
+bool move1 = false;
+bool move2 = false;
 
-/// @brief Called when timer for mesuring time between commands overflows, does nothing
-/// @param
-void Update_IT_callback(void)
-{
-}
-
+/* ==============================================
+ * Local Functions
+ * ============================================== */
+void Init_motor_drivers(int num);
+int  home_all();
+void Init_motor_direction();
+void disable_motors();
+void enable_motors();
 void Unpack_data(uint8_t *data_buffer);
 void Pack_data();
 void Pack_data_TEST();
@@ -142,8 +132,15 @@ void Get_data();
 void reset_homing();
 void Handle_gripper();
 
+/// @brief Called when timer for mesuring time between commands overflows, does nothing
+/// @param
+void Update_IT_callback(void)
+{
+}
+
 void setup()
 {
+  uint8_t i = 0;
 
   /// Init Joint sturctures
   Init_Joint_1(&Joint[0]);
@@ -247,18 +244,14 @@ void loop()
   static uint32_t last_time = 0;
   int ms = HAL_GetTick();
 
-  if ((ms - last_time) > 3000) // run every 3s
-  {
+  if ((ms - last_time) >= 3000) { // run every 3s
     last_time = ms;
   }
 
   /// Robot repetability
-
-  if (PAROL6.command == 69)
-  {
-    if (setup_var == 0)
-    {
-      setup_var = 1;
+  if (PAROL6.command == CMD_REPEATABILITY_TEST) {
+    if (setup_var == false) {
+      setup_var = true;
 
       stepper[0].setMaxSpeed(6000);
       stepper[0].setAcceleration(6000);
@@ -285,25 +278,21 @@ void loop()
       stepper[5].moveTo(46075);
 
       /// init accels
-      move1 = 1;
+      move1 = true;
     }
 
-    if (move1 == 1)
-    {
+    if (move1 == true) {
 
-      for (int i = 0; i < 6; i++)
-      {
+      for (int i = 0; i < NUMBER_OF_JOINTS; i++){
         stepper[i].run();
       }
 
-      if (stepper[0].isRunning() || stepper[1].isRunning() || stepper[2].isRunning() || stepper[3].isRunning() || stepper[4].isRunning() || stepper[5].isRunning())
-      {
-        move1 = 1;
+      if (stepper[0].isRunning() || stepper[1].isRunning() || stepper[2].isRunning() || stepper[3].isRunning() || stepper[4].isRunning() || stepper[5].isRunning()) {
+        move1 = true;
       }
-      else
-      {
-        move1 = 0;
-        move2 = 1;
+      else {
+        move1 = false;
+        move2 = true;
         stepper[0].moveTo(10240);
         stepper[1].moveTo(-32000);
         stepper[2].moveTo(57905);
@@ -314,36 +303,29 @@ void loop()
       }
     }
 
-    if (move2 == 1)
-    {
+    if (move2 == true) {
 
-      for (int i = 0; i < 6; i++)
-      {
+      for (int i = 0; i < NUMBER_OF_JOINTS; i++) {
         stepper[i].run();
       }
 
-      if (stepper[0].isRunning() || stepper[1].isRunning() || stepper[2].isRunning() || stepper[3].isRunning() || stepper[4].isRunning() || stepper[5].isRunning())
-      {
-        move2 = 1;
+      if (stepper[0].isRunning() || stepper[1].isRunning() || stepper[2].isRunning() || stepper[3].isRunning() || stepper[4].isRunning() || stepper[5].isRunning()){
+        move2 = true;
       }
-      else
-      {
-        move2 = 0;
+      else {
+        move2 = false;
         setup_var = 1;
       }
     }
   }
 
   // Dummy command
-  if (PAROL6.command == 255)
-  {
+  if (PAROL6.command == 255) {
     setup_var = 0;
-    move1 = 0;
-    move2 = 0;
-    if (home_command == 0)
-    {
-      for (int i = 0; i < 6; i++)
-      {
+    move1 = false;
+    move2 = false;
+    if (home_command == false) {
+      for (int i = 0; i < NUMBER_OF_JOINTS; i++) {
         stepper[i].setSpeed(Joint[i].commanded_velocity);
         //  provjera da li smo na većim pozicijama, ako da baci error
       }
@@ -351,63 +333,51 @@ void loop()
   }
 
   /// Enable robot
-  if (PAROL6.command == 101)
-  {
+  if (PAROL6.command == CMD_ENABLE_ROBOT) {
     reset_homing();
-    home_command = 0;
-    PAROL6.disabled = 0;
+    home_command = false;
+    PAROL6.disabled = true;
   }
 
   /// Disable robot
-  if (PAROL6.command == 102)
-  {
-    home_command = 0;
-    PAROL6.disabled = 1;
+  if (PAROL6.command == CMD_DISABLE_ROBOT) {
+    home_command = false;
+    PAROL6.disabled = true;
   }
 
   /// Clear error
-  if (PAROL6.command == 103)
-  {
-    home_command = 0;
+  if (PAROL6.command == CMD_CLEAR_ERROR){
+    home_command = false;
     reset_homing();
   }
 
   // If robot is disabled, disable all move commands
-  if (PAROL6.disabled == 0)
-  {
+  if (PAROL6.disabled == true) {
     /// Home robot
-    if (PAROL6.command == 100)
-    {
-      home_command = 1;
-      homed = 0;
-      if (homed == 0)
-      {
+    if (PAROL6.command == CMD_HOME_ROBOT) {
+      home_command = true;
+      homed = false;
+      if (homed == false) {
         home_all();
       }
-      else
-      {
-        home_command = 0;
+      else {
+        home_command = false;
       }
     }
-    else if (PAROL6.command == 255 && home_command == 1)
-    {
-      if (homed == 0)
-      {
+    else if (PAROL6.command == 255 && home_command == true) {
+      if (homed == false) {
         home_all();
       }
-      else
-      {
-        home_command = 0;
+      else {
+        home_command = false;
       }
     }
 
     /// JOG
-    if (PAROL6.command == 123)
-    {
-      home_command = 0;
-      homed = 1;
-      for (int i = 0; i < 6; i++)
-      {
+    if (PAROL6.command == CMD_JOG) {
+      home_command = false;
+      homed = true;
+      for (int i = 0; i < NUMBER_OF_JOINTS; i++) {
         stepper[i].setSpeed(Joint[i].commanded_velocity);
         stepper[i].runSpeed();
       }
@@ -423,14 +393,11 @@ void loop()
 
     /// GO 2 POSITION
     /// Input is needed position and speed
-    if (PAROL6.command == 156)
-    {
-      home_command = 0;
-      homed = 1;
+    if (PAROL6.command == CMD_MOVE) {
+      home_command = false;
+      homed = true;
 
-      for (int i = 0; i < 6; i++)
-      {
-
+      for (int i = 0; i < NUMBER_OF_JOINTS; i++) {
         int speed_set = int(((Joint[i].commanded_position - Joint[i].position) / 0.01));
         speed_set = int(((Joint[i].commanded_velocity + speed_set) / 2));
         stepper[i].setSpeed(speed_set);
@@ -442,8 +409,7 @@ void loop()
   /***************************************************/
   /***************************************************/
   /// Here check robot position and speed and save to struct
-  for (int i = 0; i < 6; i++)
-  {
+  for (int i = 0; i < NUMBER_OF_JOINTS; i++){
     Joint[i].position = stepper[i].currentPosition();
     Joint[i].speed = stepper[i].speed();
     // provjera da li smo na većim pozicijama, ako da baci error
@@ -463,60 +429,49 @@ void Get_data()
   CAN_protocol(Serial);
 
   // Get data from serial
-  while (Serial.available() > 0)
-  {
+  while (Serial.available() > 0) {
 
     input_byte = Serial.read();
     //  When data len is received start is good and after that put all data in receive buffer
     //  Data len is ALL data after it; that includes input buffer, end bytes and CRC
-    if (good_start != 1)
-    {
+    if (good_start != 1) {
       // All start bytes are good and next byte is data len
-      if (start_cond1 == 1 && start_cond2 == 1 && start_cond3 == 1)
-      {
+      if (start_cond1 == 1 && start_cond2 == 1 && start_cond3 == 1) {
         good_start = 1;
         data_len = input_byte;
         // Serial.println("Robot good start");
       }
       // Third start byte is good
-      if (input_byte == start_cond3_byte && start_cond2 == 1 && start_cond1 == 1)
-      {
+      if (input_byte == start_cond3_byte && start_cond2 == 1 && start_cond1 == 1) {
         start_cond3 = 1;
         // Serial.println("Robot good cond 3");
       }
       // Third start byte is bad, reset all flags
-      else if (start_cond2 == 1 && start_cond1 == 1)
-      {
+      else if (start_cond2 == 1 && start_cond1 == 1) {
         start_cond1 = 0;
         start_cond2 = 0;
       }
       // Second start byte is good
-      if (input_byte == start_cond2_byte && start_cond1 == 1)
-      {
+      if (input_byte == start_cond2_byte && start_cond1 == 1) {
         start_cond2 = 1;
         // Serial.println("Robot good cond 2");
       }
       // Second start byte is bad, reset all flags
-      else if (start_cond1 == 1)
-      {
+      else if (start_cond1 == 1) {
         start_cond1 = 0;
       }
       // First start byte is good
-      if (input_byte == start_cond1_byte)
-      {
+      if (input_byte == start_cond1_byte){
         start_cond1 = 1;
         // Serial.println("Robot good cond 1");
       }
     }
-    else
-    {
+    else {
       // Here data goes after good start
       data_buffer[data_counter] = input_byte;
-      if (data_counter == data_len - 1)
-      {
+      if (data_counter == data_len - 1) {
         // Here if last 2 bytes are end condition bytes we process the data
-        if (data_buffer[data_len - 2] == end_cond1_byte && data_buffer[data_len - 1] == end_cond2_byte)
-        {
+        if (data_buffer[data_len - 2] == end_cond1_byte && data_buffer[data_len - 1] == end_cond2_byte) {
 
           // Serial.println(data_buffer[data_len-2]); // 1
           // Serial.println(data_buffer[data_len-1]); // 1
@@ -559,8 +514,7 @@ void Get_data()
         data_len = 0;
         data_counter = 0;
       }
-      else
-      {
+      else {
         data_counter = data_counter + 1;
       }
     }
@@ -569,30 +523,24 @@ void Get_data()
 
 void Handle_gripper()
 {
-
-  
-    /// Here unpack gripper command data to bits and see what needs to be sent to the gripper
-    bool bitArray[8]; // 0 - activation, 1 - action status, 2 - estop status, 3 - release dir
+  /// Here unpack gripper command data to bits and see what needs to be sent to the gripper
+  bool bitArray[8]; // 0 - activation, 1 - action status, 2 - estop status, 3 - release dir
   // Comp_gripper.mode; 1 - calibration, 0 - operation mode
 
   byteToBitsBigEndian(Comp_gripper.command, bitArray);
 
-  if (Comp_gripper.mode == 1)
-  {
+  if (Comp_gripper.mode == 1) {
     Send_gripper_cal();
   }
-  else if (Comp_gripper.mode == 2)
-  {
+  else if (Comp_gripper.mode == 2) {
     Send_clear_error();
   }
   else if (Comp_gripper.prev_commanded_position == Comp_gripper.commanded_position && Comp_gripper.prev_commanded_speed == Comp_gripper.commanded_speed 
   && Comp_gripper.prev_commanded_current == Comp_gripper.commanded_current && Comp_gripper.prev_command == Comp_gripper.command && Comp_gripper.prev_commanded_ID == Comp_gripper.commanded_ID
-  && Comp_gripper.mode == 0)
-  {
+  && Comp_gripper.mode == 0)  {
     Send_gripper_pack_empty();
   }
-  else
-  {
+  else {
     Send_gripper_pack();
   }
 
@@ -607,8 +555,8 @@ void Handle_gripper()
 /// @param data_buffer array of bytes we get thru serial
 void Unpack_data(uint8_t *data_buffer)
 {
-  int Joints[6];
-  int Speed[6];
+  int Joints[NUMBER_OF_JOINTS];
+  int Speed[NUMBER_OF_JOINTS];
   int Command;
   int Affected_joint;
   int InOut;
@@ -623,8 +571,7 @@ void Unpack_data(uint8_t *data_buffer)
 
   int i, j;
   /// Unpack position data
-  for (i = 0, j = 0; i < 18; i += 3, j++)
-  {
+  for (i = 0, j = 0; i < 18; i += 3, j++) {
     uint8_t buf_test[] = {data_buffer[i], data_buffer[i + 1], data_buffer[i + 2]};
     Joints[j] = bytes_to_int(buf_test);
     Joint[j].commanded_position = Joints[j];
@@ -632,8 +579,7 @@ void Unpack_data(uint8_t *data_buffer)
     // Serial.println(Joints[j]);
   }
   /// Unpack speed data
-  for (i = 18, j = 0; i < 36; i += 3, j++)
-  {
+  for (i = 18, j = 0; i < 36; i += 3, j++) {
     uint8_t buf_test[] = {data_buffer[i], data_buffer[i + 1], data_buffer[i + 2]};
     Speed[j] = bytes_to_int(buf_test);
     Joint[j].commanded_velocity = Speed[j];
@@ -745,16 +691,14 @@ void Pack_data_TEST()
   Serial.write(len);
 
   /// Position data
-  for (int i = 0; i < 6; i++)
-  {
+  for (int i = 0; i < NUMBER_OF_JOINTS; i++)  {
     intTo3Bytes(Position_out[i], data_buffer_send);
     Serial.write(data_buffer_send[0]);
     Serial.write(data_buffer_send[1]);
     Serial.write(data_buffer_send[2]);
   }
   /// Speed data
-  for (int i = 0; i < 6; i++)
-  {
+  for (int i = 0; i < NUMBER_OF_JOINTS; i++)  {
     intTo3Bytes(Speed_out[i], data_buffer_send);
     Serial.write(data_buffer_send[0]);
     Serial.write(data_buffer_send[1]);
@@ -849,16 +793,14 @@ void Pack_data()
   Serial.write(len);
 
   /// Position data
-  for (int i = 0; i < 6; i++)
-  {
+  for (int i = 0; i < NUMBER_OF_JOINTS; i++)  {
     intTo3Bytes(Position_out[i], data_buffer_send);
     Serial.write(data_buffer_send[0]);
     Serial.write(data_buffer_send[1]);
     Serial.write(data_buffer_send[2]);
   }
   /// Speed data
-  for (int i = 0; i < 6; i++)
-  {
+  for (int i = 0; i < NUMBER_OF_JOINTS; i++) {
     intTo3Bytes(Speed_out[i], data_buffer_send);
     Serial.write(data_buffer_send[0]);
     Serial.write(data_buffer_send[1]);
@@ -977,12 +919,9 @@ int home_all()
     static int joint456_stage3 = 0;
     */
 
-  if (homed == 0)
-  {
-    if (run_once == 0)
-    {
-      for (int i = 0; i < 6; i++)
-      {
+  if (homed == false) {
+    if (run_once == 0) {
+      for (int i = 0; i < NUMBER_OF_JOINTS; i++) {
         // set initial homing speeds, these change
         Joint[i].homed = false;
         stepper[0].setSpeed(-2050);
@@ -1001,15 +940,11 @@ int home_all()
       run_once = 1;
     }
 
-    if (joint123_done == 1)
-    {
+    if (joint123_done == 1) {
 
-      if (J6_done == 1)
-      {
-
+      if (J6_done == 1) {
         /// accelerate to standby position for joint 5 and 6
-        if (Joint[4].homing_stage_2 == 1 && J5_stage4 == 0)
-        {
+        if (Joint[4].homing_stage_2 == 1 && J5_stage4 == 0) {
 
           stepper[4].setAcceleration(5500);
           stepper[4].moveTo(j5_homing_offset);
@@ -1019,8 +954,7 @@ int home_all()
 
           stepper[4].run();
           stepper[5].run();
-          if (stepper[4].currentPosition() == j5_homing_offset && stepper[5].currentPosition() == 0)
-          {
+          if (stepper[4].currentPosition() == j5_homing_offset && stepper[5].currentPosition() == 0) {
             J5_stage4 = 1;
             stepper[4].setSpeed(1050);
             J5_done = 1;
@@ -1030,11 +964,9 @@ int home_all()
         }
 
         /// hit limit and use this position as a reference!
-        if (J5_stage3 == 1 && Joint[4].homing_stage_2 == 0)
-        {
+        if (J5_stage3 == 1 && Joint[4].homing_stage_2 == 0) {
 
-          if (digitalRead(Joint[4].LIMIT) == Joint[4].limit_switch_trigger)
-          {
+          if (digitalRead(Joint[4].LIMIT) == Joint[4].limit_switch_trigger) {
 
             Joint[4].homing_stage_2 = 1;
             stepper[4].setSpeed(0);
@@ -1044,15 +976,13 @@ int home_all()
         }
 
         // move away from the first limit hit
-        if (Joint[4].homing_stage_1 == 1 && J5_stage2 == 0)
-        {
+        if (Joint[4].homing_stage_1 == 1 && J5_stage2 == 0) {
           stepper[4].moveTo(1550);
           stepper[4].setSpeed(4050);
 
           stepper[4].runSpeedToPosition();
 
-          if (stepper[4].currentPosition() == 1550)
-          {
+          if (stepper[4].currentPosition() == 1550) {
             J5_stage2 = 1;
             J5_stage3 = 1;
             stepper[4].setSpeed(-4050);
@@ -1060,8 +990,7 @@ int home_all()
         }
 
         // is the limit hit? dont use this position since limit can be pressed to much and robot can be touching joint blockers.
-        if (Joint[4].homing_stage_1 == 0)
-        {
+        if (Joint[4].homing_stage_1 == 0) {
 
           if (digitalRead(Joint[4].LIMIT) == Joint[4].limit_switch_trigger)
           {
@@ -1074,11 +1003,9 @@ int home_all()
         }
       }
 
-      if (J4_done == 1)
-      {
+      if (J4_done == 1) {
         /// accelerate joint 6 to specified position so you can home joint 5
-        if (Joint[5].homing_stage_2 == 1 && J6_stage4 == 0)
-        {
+        if (Joint[5].homing_stage_2 == 1 && J6_stage4 == 0) {
 
           stepper[5].setAcceleration(10500);
           stepper[5].moveTo(Joint[5].homed_position);
@@ -1092,8 +1019,7 @@ int home_all()
         }
 
         /// hit limit and use this position as a reference!
-        if (J6_stage3 == 1 && Joint[5].homing_stage_2 == 0)
-        {
+        if (J6_stage3 == 1 && Joint[5].homing_stage_2 == 0) {
           if (digitalRead(Joint[5].LIMIT) == Joint[5].limit_switch_trigger)
           {
 
@@ -1105,8 +1031,7 @@ int home_all()
         }
 
         // move away from the first limit hit
-        if (Joint[5].homing_stage_1 == 1 && J6_stage2 == 0)
-        {
+        if (Joint[5].homing_stage_1 == 1 && J6_stage2 == 0) {
           stepper[5].moveTo(1550);
           stepper[5].setSpeed(4050);
 
@@ -1121,8 +1046,7 @@ int home_all()
         }
 
         // is the limit hit? dont use this position since limit can be pressed to much and robot can be touching joint blockers.
-        if (Joint[5].homing_stage_1 == 0)
-        {
+        if (Joint[5].homing_stage_1 == 0) {
 
           if (digitalRead(Joint[5].LIMIT) == Joint[5].limit_switch_trigger)
           {
@@ -1136,14 +1060,12 @@ int home_all()
       /////
 
       /// accelerate to standby position for joint 4
-      if (Joint[3].homing_stage_2 == 1 && J4_stage4 == 0)
-      {
+      if (Joint[3].homing_stage_2 == 1 && J4_stage4 == 0) {
 
         stepper[3].setAcceleration(5500);
         stepper[3].moveTo(Joint[3].homed_position);
         stepper[3].run();
-        if (stepper[3].currentPosition() == Joint[3].homed_position)
-        {
+        if (stepper[3].currentPosition() == Joint[3].homed_position) {
           J4_stage4 = 1;
           stepper[3].setSpeed(2050);
           J4_done = 1;
@@ -1152,12 +1074,8 @@ int home_all()
       }
 
       /// hit limit and use this position as a reference!
-      if (J4_stage3 == 1 && Joint[3].homing_stage_2 == 0)
-      {
-
-        if (digitalRead(Joint[3].LIMIT) == Joint[3].limit_switch_trigger)
-        {
-
+      if (J4_stage3 == 1 && Joint[3].homing_stage_2 == 0) {
+        if (digitalRead(Joint[3].LIMIT) == Joint[3].limit_switch_trigger) {
           Joint[3].homing_stage_2 = 1;
           stepper[3].setSpeed(0);
           stepper[3].setCurrentPosition(0);
@@ -1166,8 +1084,7 @@ int home_all()
       }
 
       // move away from the first limit hit
-      if (Joint[3].homing_stage_1 == 1 && J4_stage2 == 0)
-      {
+      if (Joint[3].homing_stage_1 == 1 && J4_stage2 == 0) {
         stepper[3].moveTo(-1550);
         stepper[3].setSpeed(-4050);
 
@@ -1182,8 +1099,7 @@ int home_all()
       }
 
       // is the limit hit? dont use this position since limit can be pressed to much and robot can be touching joint blockers.
-      if (Joint[3].homing_stage_1 == 0)
-      {
+      if (Joint[3].homing_stage_1 == 0) {
 
         if (digitalRead(Joint[3].LIMIT) == Joint[3].limit_switch_trigger)
         {
@@ -1197,11 +1113,9 @@ int home_all()
     }
 
     /// Homing of the joints 1, 2 and 3 is done
-    if (joint123_done == 0)
-    {
+    if (joint123_done == 0) {
       /// accelerate to standby position for joints 1, 2 and 3
-      if (Joint[0].homing_stage_2 == 1 && Joint[1].homing_stage_2 == 1 && Joint[2].homing_stage_2 == 1 && joint123_stage3 == 0)
-      {
+      if (Joint[0].homing_stage_2 == 1 && Joint[1].homing_stage_2 == 1 && Joint[2].homing_stage_2 == 1 && joint123_stage3 == 0) {
         joint123_stage2 == 0;
 
         stepper[0].setAcceleration(4500);
@@ -1211,12 +1125,10 @@ int home_all()
         stepper[2].setAcceleration(5000);
         stepper[2].moveTo(Joint[2].homed_position);
 
-        for (int i = 0; i < 3; i++)
-        {
+        for (int i = 0; i < 3; i++) {
           stepper[i].run();
         }
-        if (stepper[0].currentPosition() == Joint[0].homed_position && stepper[1].currentPosition() == Joint[1].homed_position && stepper[2].currentPosition() == Joint[2].homed_position)
-        {
+        if (stepper[0].currentPosition() == Joint[0].homed_position && stepper[1].currentPosition() == Joint[1].homed_position && stepper[2].currentPosition() == Joint[2].homed_position) {
           Joint[0].homed = true;
           Joint[1].homed = true;
           Joint[2].homed = true;
@@ -1226,14 +1138,10 @@ int home_all()
       }
 
       /// hit limit and use this position as a reference!
-      if (joint123_stage2 == 1)
-      {
-        for (int i = 0; i < 3; i++)
-        {
-          if (Joint[i].homing_stage_2 == 0)
-          {
-            if (digitalRead(Joint[i].LIMIT) == Joint[i].limit_switch_trigger)
-            {
+      if (joint123_stage2 == 1) {
+        for (int i = 0; i < 3; i++) {
+          if (Joint[i].homing_stage_2 == 0) {
+            if (digitalRead(Joint[i].LIMIT) == Joint[i].limit_switch_trigger) {
               Joint[i].homing_stage_2 = 1;
               stepper[i].setSpeed(0);
               stepper[i].setCurrentPosition(0);
@@ -1244,8 +1152,7 @@ int home_all()
       }
 
       // move away from the first limit hit
-      if (Joint[0].homing_stage_1 == 1 && Joint[1].homing_stage_1 == 1 && Joint[2].homing_stage_1 == 1 && joint123_stage2 == 0)
-      {
+      if (Joint[0].homing_stage_1 == 1 && Joint[1].homing_stage_1 == 1 && Joint[2].homing_stage_1 == 1 && joint123_stage2 == 0) {
         joint123_stage1 == 1;
 
         stepper[0].moveTo(850);
@@ -1257,12 +1164,10 @@ int home_all()
         stepper[2].moveTo(1050);
         stepper[2].setSpeed(2050);
 
-        for (int i = 0; i < 3; i++)
-        {
+        for (int i = 0; i < 3; i++) {
           stepper[i].runSpeedToPosition();
         }
-        if (stepper[0].currentPosition() == 850 && stepper[1].currentPosition() == 1050 && stepper[2].currentPosition() == 1050)
-        {
+        if (stepper[0].currentPosition() == 850 && stepper[1].currentPosition() == 1050 && stepper[2].currentPosition() == 1050) {
           joint123_stage2 = 1;
           stepper[0].setSpeed(-750);
           stepper[1].setSpeed(-750);
@@ -1272,14 +1177,10 @@ int home_all()
 
       // is the limit hit? dont use this position since limit can be pressed to much and robot can be touching joint blockers.
       // this can be seen on joints 2 and 3
-      if (joint123_stage1 == 0)
-      {
-        for (int i = 0; i < 3; i++)
-        {
-          if (Joint[i].homing_stage_1 == 0)
-          {
-            if (digitalRead(Joint[i].LIMIT) == Joint[i].limit_switch_trigger)
-            {
+      if (joint123_stage1 == 0) {
+        for (int i = 0; i < 3; i++) {
+          if (Joint[i].homing_stage_1 == 0) {
+            if (digitalRead(Joint[i].LIMIT) == Joint[i].limit_switch_trigger) {
               Joint[i].homing_stage_1 = 1;
               stepper[i].setSpeed(0);
               stepper[i].setCurrentPosition(0);
@@ -1293,10 +1194,8 @@ int home_all()
 
   /// Homing is done here
   /// reset all flags, robot is in standby position so set its joint variables to those defined in DH table and diagram
-  if (J5_done == 1)
-  {
-    for (int i = 0; i < 6; i++)
-    {
+  if (J5_done == 1) {
+    for (int i = 0; i < NUMBER_OF_JOINTS; i++){
       stepper[i].setCurrentPosition(Joint[i].standby_position);
       Joint[i].homing_stage_1 = 0;
       Joint[i].homing_stage_2 = 0;
@@ -1304,15 +1203,14 @@ int home_all()
 
     reset_homing();
 
-    homed = 1;
+    homed = true;
   }
   return homed;
 }
 
 void Init_motor_direction()
 {
-  for (int i = 0; i < 6; i++)
-  {
+  for (int i = 0; i < 6; i++) {
     stepper[i].setPinsInverted(Joint[i].direction_reversed);
   }
 }

@@ -149,7 +149,7 @@ struct Robot
   /// Robot sends this 
   int timeout_error = 100; 
   int Affected_joint;
-  int disabled = 0;
+  bool disabled = false;
 
 
 };
