@@ -14,16 +14,19 @@
 #include <Arduino.h>
 #include <AccelStepper.h>
 #include <Arduino.h>
-#include "hw_init.h"
-#include "iodefs.h"
-#include "utils.h"
+
+#include "adc_init.h"
 #include "common.h"
 #include "constants.h"
-#include "adc_init.h"
-#include "stm32f4xx_hal.h"
-#include "motor_init.h"
 #include "CAN.h"
 #include "comms_CAN.h"
+#include "DataTypes.h"
+#include "hw_init.h"
+#include "iodefs.h"
+#include "motor_init.h"
+#include "stm32f4xx_hal.h"
+#include "utils.h"
+
 
 // HardwareSerial Serial2(USART2); // compiles
 #define Serial SerialUSB
@@ -48,9 +51,9 @@ int current_tick = 0;
 int prev_tick = 0;
 
 // variables for robot homing
-bool homed = false;
+BOOL homed = false;
 int repet_flag = 0;
-bool home_command = false;
+BOOL home_command = false;
 
 // Input helper variables
 byte input_byte = 0; // Here save incoming bytes from serial
@@ -74,11 +77,11 @@ byte data_counter = 0; // Data counter for incoming bytes; compared to data leng
 
 // 255 255 255 5 2 3 3 0 1
 /// @brief Data for output stuff
-uint8_t start_bytes[] = {0xff, 0xff, 0xff};
-uint8_t data_led = 0x05;
-// uint8_t test_data[] = {0x02, 0x03, 0x03};
-uint8_t test_data[] = {2, 3, 3};
-uint8_t end_bytes[] = {0x01, 0x02};
+UINT_8 start_bytes[] = {0xff, 0xff, 0xff};
+UINT_8 data_led = 0x05;
+// UINT_8 test_data[] = {0x02, 0x03, 0x03};
+UINT_8 test_data[] = {2, 3, 3};
+UINT_8 end_bytes[] = {0x01, 0x02};
 
 TIM_TypeDef *Instance = TIM2;
 HardwareTimer *MyTim = new HardwareTimer(Instance);
@@ -113,9 +116,9 @@ int joint456_stage2 = 0;
 int joint456_stage3 = 0;
 
 /// demo stage test
-bool setup_var = false;
-bool move1 = false;
-bool move2 = false;
+BOOL setup_var = false;
+BOOL move1 = false;
+BOOL move2 = false;
 
 /* ==============================================
  * Local Functions
@@ -125,7 +128,7 @@ int  home_all();
 void Init_motor_direction();
 void disable_motors();
 void enable_motors();
-void Unpack_data(uint8_t *data_buffer);
+void Unpack_data(UINT_8 *data_buffer);
 void Pack_data();
 void Pack_data_TEST();
 void Get_data();
@@ -140,7 +143,7 @@ void Update_IT_callback(void)
 
 void setup()
 {
-  uint8_t i = 0;
+  UINT_8 i = 0;
 
   /// Init Joint sturctures
   Init_Joint_1(&Joint[0]);
@@ -485,9 +488,9 @@ void Get_data()
           // Serial.println("ROBOT DATA PACK");
 
           // Read estop and inputs and write outputs
-          PAROL6.In1   = (bool)digitalRead(INPUT1);
-          PAROL6.In2   = (bool)digitalRead(INPUT2);
-          PAROL6.Estop = (bool)digitalRead(ESTOP);
+          PAROL6.In1   = (BOOL)digitalRead(INPUT1);
+          PAROL6.In2   = (BOOL)digitalRead(INPUT2);
+          PAROL6.Estop = (BOOL)digitalRead(ESTOP);
           digitalWrite(OUTPUT1, PAROL6.commanded_OUT1);
           digitalWrite(OUTPUT2, PAROL6.commanded_OUT2);
           PAROL6.Out1 = PAROL6.commanded_OUT1;
@@ -524,7 +527,7 @@ void Get_data()
 void Handle_gripper()
 {
   /// Here unpack gripper command data to bits and see what needs to be sent to the gripper
-  bool bitArray[8]; // 0 - activation, 1 - action status, 2 - estop status, 3 - release dir
+  BOOL bitArray[8]; // 0 - activation, 1 - action status, 2 - estop status, 3 - release dir
   // Comp_gripper.mode; 1 - calibration, 0 - operation mode
 
   byteToBitsBigEndian(Comp_gripper.command, bitArray);
@@ -553,7 +556,7 @@ void Handle_gripper()
 
 /// @brief  Unpack data packet we got from the PC
 /// @param data_buffer array of bytes we get thru serial
-void Unpack_data(uint8_t *data_buffer)
+void Unpack_data(UINT_8 *data_buffer)
 {
   int Joints[NUMBER_OF_JOINTS];
   int Speed[NUMBER_OF_JOINTS];
@@ -572,7 +575,7 @@ void Unpack_data(uint8_t *data_buffer)
   int i, j;
   /// Unpack position data
   for (i = 0, j = 0; i < 18; i += 3, j++) {
-    uint8_t buf_test[] = {data_buffer[i], data_buffer[i + 1], data_buffer[i + 2]};
+    UINT_8 buf_test[] = {data_buffer[i], data_buffer[i + 1], data_buffer[i + 2]};
     Joints[j] = bytes_to_int(buf_test);
     Joint[j].commanded_position = Joints[j];
 
@@ -580,7 +583,7 @@ void Unpack_data(uint8_t *data_buffer)
   }
   /// Unpack speed data
   for (i = 18, j = 0; i < 36; i += 3, j++) {
-    uint8_t buf_test[] = {data_buffer[i], data_buffer[i + 1], data_buffer[i + 2]};
+    UINT_8 buf_test[] = {data_buffer[i], data_buffer[i + 1], data_buffer[i + 2]};
     Speed[j] = bytes_to_int(buf_test);
     Joint[j].commanded_velocity = Speed[j];
     // Serial.println(Speed[j]);
@@ -593,7 +596,7 @@ void Unpack_data(uint8_t *data_buffer)
   PAROL6.Affected_joint = Affected_joint;
   // Serial.println(Affected_joint);
   InOut = data_buffer[38];
-  bool bitArray[8];
+  BOOL bitArray[8];
   byteToBitsBigEndian(InOut, bitArray);
   PAROL6.commanded_OUT1 = bitArray[2];
   PAROL6.commanded_OUT2 = bitArray[3];
@@ -602,7 +605,7 @@ void Unpack_data(uint8_t *data_buffer)
   PAROL6.Timeout = Timeout;
   // Serial.println(Timeout);
 
-  uint8_t buf_test[2] = {data_buffer[40], data_buffer[41]};
+  UINT_8 buf_test[2] = {data_buffer[40], data_buffer[41]};
   Gripper_position = two_bytes_to_int(buf_test);
   Comp_gripper.commanded_position = Gripper_position;
   // Serial.println(Gripper_position);
@@ -661,14 +664,14 @@ void Pack_data_TEST()
 {
 
   // Len is defined by all bytes EXCEPT start bytes and len
-  uint8_t start_bytes[] = {0xff, 0xff, 0xff}; // 3
+  UINT_8 start_bytes[] = {0xff, 0xff, 0xff}; // 3
   int len = 56;
   int Position_out[] = {255, 254, 253, 252, 251, 250}; // 18
   int Speed_out[] = {245, 244, 243, 242, 241, 240};    // 18
-  bool Homed[] = {1, 1, 1, 1, 1, 1, 1, 1};             // 1
-  bool IO_var[] = {0, 0, 0, 0, 0, 0, 0, 0};            // 1
-  bool temp_error[] = {1, 1, 1, 1, 1, 1, 1, 1};        // 1
-  bool position_error[] = {0, 0, 0, 0, 0, 0, 0, 0};    // 1
+  BOOL Homed[] = {1, 1, 1, 1, 1, 1, 1, 1};             // 1
+  BOOL IO_var[] = {0, 0, 0, 0, 0, 0, 0, 0};            // 1
+  BOOL temp_error[] = {1, 1, 1, 1, 1, 1, 1, 1};        // 1
+  BOOL position_error[] = {0, 0, 0, 0, 0, 0, 0, 0};    // 1
   int timing_data = 255;                               // 2 byte
   int timeout_error = 244;                             // 1
   int xtr2 = 255;                                      // 1
@@ -679,7 +682,7 @@ void Pack_data_TEST()
   int gripper_status = 200;                            // 1
   int object_detection = 1;                            // 1
   int CRC_byte = 212;                                  // 1
-  uint8_t end_bytes[] = {0x01, 0x02};                  // 2
+  UINT_8 end_bytes[] = {0x01, 0x02};                  // 2
 
   byte data_buffer_send[3];
 
@@ -762,14 +765,14 @@ void Pack_data()
 {
 
   // Len is defined by all bytes EXCEPT start bytes and len
-  uint8_t start_bytes[] = {0xff, 0xff, 0xff}; // 3
+  UINT_8 start_bytes[] = {0xff, 0xff, 0xff}; // 3
   int len = 56;
   int Position_out[] = {Joint[0].position, Joint[1].position, Joint[2].position, Joint[3].position, Joint[4].position, Joint[5].position};                                                            // 18
   int Speed_out[] = {Joint[0].speed, Joint[1].speed, Joint[2].speed, Joint[3].speed, Joint[4].speed, Joint[5].speed};                                                                                 // 18
-  bool Homed[] = {Joint[0].homed, Joint[1].homed, Joint[2].homed, Joint[3].homed, Joint[4].homed, Joint[5].homed, 1, 1};                                                                              // 1
-  bool IO_var[] = {PAROL6.In1, PAROL6.In2, PAROL6.Out1, PAROL6.Out2, PAROL6.Estop, 1, 1, 1};                                                                                                          // 1
-  bool temp_error[] = {Joint[0].temperature_error, Joint[1].temperature_error, Joint[2].temperature_error, Joint[3].temperature_error, Joint[4].temperature_error, Joint[5].temperature_error, 1, 1}; // 1
-  bool position_error[] = {Joint[0].position_error, Joint[1].position_error, Joint[2].position_error, Joint[3].position_error, Joint[4].position_error, Joint[5].position_error, 1, 1};               // 1
+  BOOL Homed[] = {Joint[0].homed, Joint[1].homed, Joint[2].homed, Joint[3].homed, Joint[4].homed, Joint[5].homed, 1, 1};                                                                              // 1
+  BOOL IO_var[] = {PAROL6.In1, PAROL6.In2, PAROL6.Out1, PAROL6.Out2, PAROL6.Estop, 1, 1, 1};                                                                                                          // 1
+  BOOL temp_error[] = {Joint[0].temperature_error, Joint[1].temperature_error, Joint[2].temperature_error, Joint[3].temperature_error, Joint[4].temperature_error, Joint[5].temperature_error, 1, 1}; // 1
+  BOOL position_error[] = {Joint[0].position_error, Joint[1].position_error, Joint[2].position_error, Joint[3].position_error, Joint[4].position_error, Joint[5].position_error, 1, 1};               // 1
   unsigned int timing_data = PAROL6.time_between_commands;                                                                                                                                            // 2 byte
   int timeout_error = PAROL6.timeout_error;                                                                                                                                                           // 1
   int xtr2 = PAROL6.command;
@@ -781,7 +784,7 @@ void Pack_data()
   int gripper_status = Comp_gripper.current_status;     // 1
   int object_detection = Comp_gripper.object_detection; // 1
   int CRC_byte = PAROL6.CRC_value;                      // 1
-  uint8_t end_bytes[] = {0x01, 0x02};                   // 2
+  UINT_8 end_bytes[] = {0x01, 0x02};                   // 2
 
   byte data_buffer_send[3];
 
