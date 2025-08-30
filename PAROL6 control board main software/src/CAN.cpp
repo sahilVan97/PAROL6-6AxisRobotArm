@@ -434,4 +434,7 @@ uint8_t CANMsgAvail(uint8_t ch)
     return CAN2->RF0R & 0x3UL;
   } // end CAN2
 
+  // TODO : Invalid channel. Add macros for error codes
+  return 0;
+
 }

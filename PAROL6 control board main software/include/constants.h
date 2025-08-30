@@ -14,6 +14,7 @@
 
 #define ID 1
 
+#undef  ADC_RESOLUTION // Undefine if previously defined
 #define ADC_RESOLUTION 12
 
 #define R_SENSE 0.075f

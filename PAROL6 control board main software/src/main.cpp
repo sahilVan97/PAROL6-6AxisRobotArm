@@ -530,10 +530,9 @@ void Get_data()
           // Serial.println("ROBOT DATA PACK");
 
           // Read estop and inputs and write outputs
-          
-          PAROL6.In1 = digitalRead(INPUT1);
-          PAROL6.In2 = digitalRead(INPUT2);
-          PAROL6.Estop = digitalRead(ESTOP);
+          PAROL6.In1   = (bool)digitalRead(INPUT1);
+          PAROL6.In2   = (bool)digitalRead(INPUT2);
+          PAROL6.Estop = (bool)digitalRead(ESTOP);
           digitalWrite(OUTPUT1, PAROL6.commanded_OUT1);
           digitalWrite(OUTPUT2, PAROL6.commanded_OUT2);
           PAROL6.Out1 = PAROL6.commanded_OUT1;
@@ -768,10 +767,10 @@ void Pack_data_TEST()
   Serial.write(bitsToByte(IO_var));
 
   /// temperature error
-  Serial.write(bitsToByte(temp_error));
+  Serial.write(boolToByte(temp_error));
 
   /// positon error
-  Serial.write(bitsToByte(position_error));
+  Serial.write(boolToByte(position_error));
 
   // Dummy timing data
   Serial.write(255);

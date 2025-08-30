@@ -61,8 +61,8 @@
 #define CAN1TX PB9
 #define CAN1RX PB8
 
-#define CAN1TX PB13
-#define CAN1RX PB12
+#define CAN2TX PB13
+#define CAN2RX PB12
 
 
 #endif

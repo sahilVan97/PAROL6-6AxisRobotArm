@@ -54,7 +54,7 @@ struct MotorStruct
   int homing_stage_2 = 0;
 
   /// @brief temperature error flag
-  int temperature_error;
+  bool temperature_error;
   /// @brief temperature warrning flag
   int temperature_warrning;
 
@@ -116,7 +116,7 @@ struct MotorStruct
   int commanded_current;
 
   /// @brief Robot tried to go to position it is not allowed to go
-  int position_error = 0;
+  bool position_error = 0;
 
   int error;
 };
@@ -131,11 +131,11 @@ struct Robot
   int affected_joint;
   int commanded_OUT1;
   int commanded_OUT2;
-  int In1;
-  int In2;
-  int Out1;
-  int Out2;
-  int Estop;
+  bool In1;
+  bool In2;
+  bool Out1;
+  bool Out2;
+  bool Estop;
   unsigned int time_between_commands = 0;
   int Out1_commanded;
   int Out2_commanded;

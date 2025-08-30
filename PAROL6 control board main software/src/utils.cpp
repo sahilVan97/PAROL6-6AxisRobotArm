@@ -156,6 +156,14 @@ unsigned char bitsToByte(const bool *bits)
   return byte;
 }
 
+/// @brief  convert a boolean to byte
+/// @param bits
+/// @return byte with value of boolean
+unsigned char boolToByte(const bool b)
+{
+  return b ? 1 : 0;
+}
+
 /// @brief  Convert byte to array of bits
 /// @param b byte we want to convert
 /// @param bits bits we will get

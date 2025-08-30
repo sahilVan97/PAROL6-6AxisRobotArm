@@ -25,7 +25,7 @@ void Init_Joint_1(struct MotorStruct *Joint__)
     Joint__->joint_range_negative_steps = -14000;
     Joint__->homed = 0;
     Joint__->homing = 0;
-    Joint__->temperature_error = 0;
+    Joint__->temperature_error = false;
     Joint__->temperature_warrning = 0;
     Joint__->microstep = MICROSTEP;
     Joint__->limit_switch_trigger = 0; // temp since sensor is faulty?
@@ -67,7 +67,7 @@ void Init_Joint_2(struct MotorStruct *Joint__)
     Joint__->joint_range_negative_steps = -51587;
     Joint__->homed = 0;
     Joint__->homing = 0;
-    Joint__->temperature_error = 0;
+    Joint__->temperature_error = false;
     Joint__->temperature_warrning = 0;
     Joint__->microstep = MICROSTEP;
     Joint__->limit_switch_trigger = 1;
@@ -109,7 +109,7 @@ void Init_Joint_3(struct MotorStruct *Joint__)
     Joint__->joint_range_negative_steps = 34700;
     Joint__->homed = 0;
     Joint__->homing = 0;
-    Joint__->temperature_error = 0;
+    Joint__->temperature_error = false;
     Joint__->temperature_warrning = 0;
     Joint__->microstep = MICROSTEP;
     Joint__->limit_switch_trigger = 1;
@@ -152,7 +152,7 @@ void Init_Joint_4(struct MotorStruct *Joint__)
     Joint__->joint_range_negative_steps = -7500;
     Joint__->homed = 0;
     Joint__->homing = 0;
-    Joint__->temperature_error = 0;
+    Joint__->temperature_error = false;
     Joint__->temperature_warrning = 0;
     Joint__->microstep = MICROSTEP;
     Joint__->limit_switch_trigger = 0;
@@ -194,7 +194,7 @@ void Init_Joint_5(struct MotorStruct *Joint__)
     Joint__->joint_range_negative_steps = -6400;
     Joint__->homed = 0;
     Joint__->homing = 0;
-    Joint__->temperature_error = 0;
+    Joint__->temperature_error = false;
     Joint__->temperature_warrning = 0;
     Joint__->microstep = MICROSTEP;
     Joint__->limit_switch_trigger = 1;
@@ -236,7 +236,7 @@ void Init_Joint_6(struct MotorStruct *Joint__)
     Joint__->joint_range_negative_steps = 0;
     Joint__->homed = 0;
     Joint__->homing = 0;
-    Joint__->temperature_error = 0;
+    Joint__->temperature_error = false;
     Joint__->temperature_warrning = 0;
     Joint__->microstep = MICROSTEP;
     Joint__->limit_switch_trigger = 0;
