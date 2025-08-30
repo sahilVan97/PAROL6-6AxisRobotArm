@@ -7,7 +7,7 @@
 
 */
 
-#include "utils.h"
+#include <utils.h>
 
 volatile uint32_t counter_1us = 0;
 

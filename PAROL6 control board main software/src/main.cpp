@@ -23,7 +23,7 @@
 #include "stm32f4xx_hal.h"
 #include "motor_init.h"
 #include "CAN.h"
-#include "coms_CAN.h"
+#include "comms_CAN.h"
 
 // HardwareSerial Serial2(USART2); // compiles
 #define Serial SerialUSB
@@ -608,8 +608,6 @@ void Handle_gripper()
 /// @param data_buffer array of bytes we get thru serial
 void Unpack_data(uint8_t *data_buffer)
 {
-
-  int temp[6][3];
   int Joints[6];
   int Speed[6];
   int Command;
@@ -628,10 +626,7 @@ void Unpack_data(uint8_t *data_buffer)
   /// Unpack position data
   for (i = 0, j = 0; i < 18; i += 3, j++)
   {
-    temp[j][0] = data_buffer[i];
-    temp[j][1] = data_buffer[i + 1];
-    temp[j][2] = data_buffer[i + 2];
-    uint8_t buf_test[] = {temp[j][0], temp[j][1], temp[j][2]};
+    uint8_t buf_test[] = {data_buffer[i], data_buffer[i + 1], data_buffer[i + 2]};
     Joints[j] = bytes_to_int(buf_test);
     Joint[j].commanded_position = Joints[j];
 
@@ -640,10 +635,7 @@ void Unpack_data(uint8_t *data_buffer)
   /// Unpack speed data
   for (i = 18, j = 0; i < 36; i += 3, j++)
   {
-    temp[j][0] = data_buffer[i];
-    temp[j][1] = data_buffer[i + 1];
-    temp[j][2] = data_buffer[i + 2];
-    uint8_t buf_test[] = {temp[j][0], temp[j][1], temp[j][2]};
+    uint8_t buf_test[] = {data_buffer[i], data_buffer[i + 1], data_buffer[i + 2]};
     Speed[j] = bytes_to_int(buf_test);
     Joint[j].commanded_velocity = Speed[j];
     // Serial.println(Speed[j]);
@@ -993,19 +985,19 @@ int home_all()
       for (int i = 0; i < 6; i++)
       {
         // set initial homing speeds, these change
-        Joint[i].homed = 0;
+        Joint[i].homed = false;
         stepper[0].setSpeed(-2050);
         stepper[1].setSpeed(-2550);
         stepper[2].setSpeed(-2550);
         stepper[3].setSpeed(5550);
         stepper[4].setSpeed(-5050);
         stepper[5].setSpeed(-9550);
-        Joint[0].homed = 0;
-        Joint[1].homed = 0;
-        Joint[2].homed = 0;
-        Joint[3].homed = 0;
-        Joint[4].homed = 0;
-        Joint[5].homed = 0;
+        Joint[0].homed = false;
+        Joint[1].homed = false;
+        Joint[2].homed = false;
+        Joint[3].homed = false;
+        Joint[4].homed = false;
+        Joint[5].homed = false;
       }
       run_once = 1;
     }
@@ -1033,8 +1025,8 @@ int home_all()
             J5_stage4 = 1;
             stepper[4].setSpeed(1050);
             J5_done = 1;
-            Joint[4].homed = 1;
-            Joint[5].homed = 1;
+            Joint[4].homed = true;
+            Joint[5].homed = true;
           }
         }
 
@@ -1156,7 +1148,7 @@ int home_all()
           J4_stage4 = 1;
           stepper[3].setSpeed(2050);
           J4_done = 1;
-          Joint[3].homed = 1;
+          Joint[3].homed = true;
         }
       }
 
@@ -1226,9 +1218,9 @@ int home_all()
         }
         if (stepper[0].currentPosition() == Joint[0].homed_position && stepper[1].currentPosition() == Joint[1].homed_position && stepper[2].currentPosition() == Joint[2].homed_position)
         {
-          Joint[0].homed = 1;
-          Joint[1].homed = 1;
-          Joint[2].homed = 1;
+          Joint[0].homed = true;
+          Joint[1].homed = true;
+          Joint[2].homed = true;
           joint123_stage3 = 1;
           joint123_done = 1;
         }

@@ -19,8 +19,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 
-#include "coms_CAN.h"
-
+#include "comms_CAN.h"
 /*
 The node with the lowest ID will always win the arbitration and therefore has the highest priority.
 */
